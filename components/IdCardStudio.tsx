@@ -4,13 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import JSZip from "jszip";
 import {
   TEMPLATE_SRC,
-  PHOTO_R,
   CARD_WIDTH,
   CARD_HEIGHT,
+  PHOTO_R,
   PhotoTransform,
   buildTweetCaption,
   canvasToBlob,
   composeIdCard,
+  coverCropRect,
   downloadBlob,
   loadImage,
   normalizePhoto,
@@ -20,11 +21,17 @@ import { ensureDecodableImage } from "@/lib/heic";
 
 const ACCEPT = "image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif";
 const DEFAULT_TRANSFORM: PhotoTransform = { x: 0, y: 0, zoom: 1 };
+const CROP_SIZE = 280;
 
 type Mode = "single" | "bulk";
 
+function safeSlug(value: string) {
+  return (value.trim() || "team").replace(/[^\w.-]+/g, "-").slice(0, 40);
+}
+
 export default function IdCardStudio() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const cardCanvasRef = useRef<HTMLCanvasElement>(null);
+  const cropCanvasRef = useRef<HTMLCanvasElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const bulkRef = useRef<HTMLInputElement>(null);
   const templateRef = useRef<HTMLImageElement | null>(null);
@@ -37,7 +44,7 @@ export default function IdCardStudio() {
   } | null>(null);
 
   const [mode, setMode] = useState<Mode>("single");
-  const [builderId, setBuilderId] = useState("#HH-GOA-----");
+  const [teamName, setTeamName] = useState("");
   const [transform, setTransform] = useState<PhotoTransform>(DEFAULT_TRANSFORM);
   const [hasPhoto, setHasPhoto] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -47,17 +54,60 @@ export default function IdCardStudio() {
   const [bulkCount, setBulkCount] = useState(0);
   const [bulkDone, setBulkDone] = useState(0);
 
-  // Client-only ID so SSR HTML matches first paint (avoids hydration mismatch)
-  useEffect(() => {
-    const t = requestAnimationFrame(() => setBuilderId(randomBuilderId()));
-    return () => cancelAnimationFrame(t);
-  }, []);
-
-  const redraw = (next = transform) => {
-    const canvas = canvasRef.current;
+  const redrawCard = (next = transform) => {
+    const canvas = cardCanvasRef.current;
     const template = templateRef.current;
     if (!canvas || !template) return;
     composeIdCard(template, photoRef.current, next, canvas);
+  };
+
+  const redrawCrop = (next = transform) => {
+    const canvas = cropCanvasRef.current;
+    const photo = photoRef.current;
+    if (!canvas) return;
+    canvas.width = CROP_SIZE;
+    canvas.height = CROP_SIZE;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    ctx.clearRect(0, 0, CROP_SIZE, CROP_SIZE);
+    ctx.fillStyle = "#0a5c32";
+    ctx.fillRect(0, 0, CROP_SIZE, CROP_SIZE);
+
+    if (!photo) {
+      ctx.fillStyle = "rgba(255,255,255,0.55)";
+      ctx.font = "600 14px system-ui,sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("Your photo", CROP_SIZE / 2, CROP_SIZE / 2);
+      return;
+    }
+
+    const scaleToCard = (PHOTO_R * 2) / CROP_SIZE;
+    const mapped: PhotoTransform = {
+      x: next.x / scaleToCard,
+      y: next.y / scaleToCard,
+      zoom: next.zoom,
+    };
+    const { x, y, drawW, drawH } = coverCropRect(
+      photo.naturalWidth,
+      photo.naturalHeight,
+      CROP_SIZE,
+      mapped,
+    );
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(CROP_SIZE / 2, CROP_SIZE / 2, CROP_SIZE / 2 - 2, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.drawImage(photo, x, y, drawW, drawH);
+    ctx.restore();
+
+    ctx.beginPath();
+    ctx.arc(CROP_SIZE / 2, CROP_SIZE / 2, CROP_SIZE / 2 - 2, 0, Math.PI * 2);
+    ctx.strokeStyle = "#f5d000";
+    ctx.lineWidth = 4;
+    ctx.stroke();
   };
 
   useEffect(() => {
@@ -78,7 +128,9 @@ export default function IdCardStudio() {
   }, []);
 
   useEffect(() => {
-    if (ready) redraw(transform);
+    if (!ready) return;
+    redrawCard(transform);
+    redrawCrop(transform);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [transform, ready, hasPhoto]);
 
@@ -104,14 +156,8 @@ export default function IdCardStudio() {
     }
   };
 
-  const scaleForPointer = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return 1;
-    return CARD_WIDTH / canvas.getBoundingClientRect().width;
-  };
-
-  const onPointerDown = (e: React.PointerEvent) => {
-    if (!hasPhoto || mode !== "single") return;
+  const onCropPointerDown = (e: React.PointerEvent) => {
+    if (!hasPhoto) return;
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
     dragRef.current = {
       active: true,
@@ -121,32 +167,36 @@ export default function IdCardStudio() {
     };
   };
 
-  const onPointerMove = (e: React.PointerEvent) => {
+  const onCropPointerMove = (e: React.PointerEvent) => {
     const drag = dragRef.current;
     if (!drag?.active) return;
-    const s = scaleForPointer();
+    const canvas = cropCanvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const scaleToCard = (PHOTO_R * 2) / CROP_SIZE;
+    const viewScale = CROP_SIZE / rect.width;
     setTransform({
       ...drag.origin,
-      x: drag.origin.x + (e.clientX - drag.startX) * s,
-      y: drag.origin.y + (e.clientY - drag.startY) * s,
+      x: drag.origin.x + (e.clientX - drag.startX) * viewScale * scaleToCard,
+      y: drag.origin.y + (e.clientY - drag.startY) * viewScale * scaleToCard,
     });
   };
 
-  const onPointerUp = () => {
+  const onCropPointerUp = () => {
     if (dragRef.current) dragRef.current.active = false;
   };
 
   const exportPng = async () => {
-    const canvas = canvasRef.current;
+    const canvas = cardCanvasRef.current;
     if (!canvas || !hasPhoto) return null;
-    redraw(transform);
+    redrawCard(transform);
     return canvasToBlob(canvas);
   };
 
   const onDownload = async () => {
     const blob = await exportPng();
     if (!blob) return;
-    downloadBlob(blob, `HH-Goa-Builder-Card-${builderId.replace("#", "")}.png`);
+    downloadBlob(blob, `HH-Goa-Builder-Card-${safeSlug(teamName)}.png`);
   };
 
   const onShare = async () => {
@@ -155,8 +205,8 @@ export default function IdCardStudio() {
     try {
       const blob = await exportPng();
       if (!blob) return;
-      downloadBlob(blob, `HH-Goa-Builder-Card-${builderId.replace("#", "")}.png`);
-      const caption = buildTweetCaption(builderId, window.location.origin);
+      downloadBlob(blob, `HH-Goa-Builder-Card-${safeSlug(teamName)}.png`);
+      const caption = buildTweetCaption(teamName, window.location.origin);
       window.open(
         `https://twitter.com/intent/tweet?text=${encodeURIComponent(caption)}`,
         "_blank",
@@ -171,6 +221,7 @@ export default function IdCardStudio() {
   const onBulk = async (files: FileList | null) => {
     if (!files?.length || !templateRef.current) return;
     const list = Array.from(files);
+    const team = safeSlug(teamName);
     setBusy(true);
     setBulkCount(list.length);
     setBulkDone(0);
@@ -178,30 +229,31 @@ export default function IdCardStudio() {
 
     try {
       const zip = new JSZip();
-      const ids: string[] = [];
+      const manifest: string[] = [];
       const offscreen = document.createElement("canvas");
 
       for (let i = 0; i < list.length; i++) {
         const file = list[i];
         const id = randomBuilderId();
-        ids.push(`${file.name}\t${id}`);
         try {
           const decoded = await ensureDecodableImage(file);
           const photo = await normalizePhoto(decoded);
           composeIdCard(templateRef.current, photo, DEFAULT_TRANSFORM, offscreen);
           const blob = await canvasToBlob(offscreen);
           const num = String(i + 1).padStart(3, "0");
-          zip.file(`HH-Goa-Builder-Card-${num}-${id.replace("#", "")}.png`, blob);
+          const name = `HH-Goa-${team}-${num}.png`;
+          zip.file(name, blob);
+          manifest.push(`${file.name}\t${name}\t${id}`);
         } catch {
-          ids.push(`${file.name}\tERROR`);
+          manifest.push(`${file.name}\tERROR`);
         }
         setBulkDone(i + 1);
         setStatus(`Generating ${i + 1} / ${list.length}…`);
       }
 
-      zip.file("builder-ids.txt", ids.join("\n"));
+      zip.file("manifest.txt", manifest.join("\n"));
       const out = await zip.generateAsync({ type: "blob" });
-      downloadBlob(out, `HH-Goa-Builder-Cards-${list.length}.zip`);
+      downloadBlob(out, `HH-Goa-${team}-cards.zip`);
       setStatus(`Done — ${list.length} cards downloaded as ZIP.`);
     } catch {
       setStatus("Bulk export failed. Try fewer photos.");
@@ -253,12 +305,17 @@ export default function IdCardStudio() {
         <section className="studio-panel">
           {mode === "single" ? (
             <>
-              <div className="field">
-                <span>Builder ID</span>
-                <div className="builder-id" suppressHydrationWarning>
-                  {builderId}
-                </div>
-              </div>
+              <label className="field">
+                <span>Team name</span>
+                <input
+                  type="text"
+                  value={teamName}
+                  maxLength={48}
+                  placeholder="e.g. CtrlCrew"
+                  autoComplete="organization"
+                  onChange={(e) => setTeamName(e.target.value)}
+                />
+              </label>
 
               <div className="field">
                 <span>Photo</span>
@@ -285,35 +342,52 @@ export default function IdCardStudio() {
                 </button>
               </div>
 
-              {hasPhoto ? (
-                <div className="field">
-                  <span>Crop</span>
-                  <label className="zoom-row">
-                    <span>Zoom</span>
-                    <input
-                      type="range"
-                      min={1}
-                      max={3}
-                      step={0.05}
-                      value={transform.zoom}
-                      onChange={(e) =>
-                        setTransform((t) => ({ ...t, zoom: Number(e.target.value) }))
-                      }
+              <div className="field">
+                <span>Crop &amp; frame</span>
+                <div className="crop-editor">
+                  <div
+                    className={`crop-stage${hasPhoto ? " is-interactive" : ""}`}
+                    onPointerDown={onCropPointerDown}
+                    onPointerMove={onCropPointerMove}
+                    onPointerUp={onCropPointerUp}
+                    onPointerCancel={onCropPointerUp}
+                  >
+                    <canvas
+                      ref={cropCanvasRef}
+                      width={CROP_SIZE}
+                      height={CROP_SIZE}
+                      className="crop-canvas"
+                      aria-label="Photo crop editor"
                     />
-                    <em>{transform.zoom.toFixed(2)}×</em>
-                  </label>
-                  <div className="crop-actions">
+                  </div>
+                  <div className="crop-controls">
+                    <label className="zoom-row">
+                      <span>Zoom</span>
+                      <input
+                        type="range"
+                        min={1}
+                        max={3}
+                        step={0.05}
+                        value={transform.zoom}
+                        disabled={!hasPhoto}
+                        onChange={(e) =>
+                          setTransform((t) => ({ ...t, zoom: Number(e.target.value) }))
+                        }
+                      />
+                      <em>{transform.zoom.toFixed(2)}×</em>
+                    </label>
                     <button
                       type="button"
                       className="btn btn-ghost"
+                      disabled={!hasPhoto}
                       onClick={() => setTransform(DEFAULT_TRANSFORM)}
                     >
                       Reset crop
                     </button>
+                    <p className="hint">Drag inside the circle to pan. Zoom to crop tighter.</p>
                   </div>
-                  <p className="hint">Drag the preview to pan. Zoom in to crop tighter.</p>
                 </div>
-              ) : null}
+              </div>
 
               {status && mode === "single" ? <p className="status">{status}</p> : null}
 
@@ -338,9 +412,20 @@ export default function IdCardStudio() {
             </>
           ) : (
             <>
+              <label className="field">
+                <span>Team name</span>
+                <input
+                  type="text"
+                  value={teamName}
+                  maxLength={48}
+                  placeholder="e.g. CtrlCrew"
+                  autoComplete="organization"
+                  onChange={(e) => setTeamName(e.target.value)}
+                />
+              </label>
               <p className="bulk-copy">
-                Upload many photos at once. Each gets a centered crop and its own Builder ID.
-                You get a ZIP of PNGs plus a matching ID list.
+                Upload many photos at once. Each card uses a centered crop. You get a ZIP of PNGs
+                named with your team.
               </p>
               <input
                 ref={bulkRef}
@@ -382,25 +467,18 @@ export default function IdCardStudio() {
 
         <section className="studio-preview">
           <div
-            className={`preview-frame${hasPhoto && mode === "single" ? " is-interactive" : ""}`}
+            className="preview-frame"
             style={{ aspectRatio: `${CARD_WIDTH} / ${CARD_HEIGHT}` }}
-            onPointerDown={onPointerDown}
-            onPointerMove={onPointerMove}
-            onPointerUp={onPointerUp}
-            onPointerCancel={onPointerUp}
           >
             <canvas
-              ref={canvasRef}
+              ref={cardCanvasRef}
               width={CARD_WIDTH}
               height={CARD_HEIGHT}
               className="preview-canvas"
               aria-label="Builder card preview"
             />
             {!hasPhoto && ready ? (
-              <div
-                className="preview-empty"
-                style={{ ["--photo-r" as string]: `${(PHOTO_R / CARD_WIDTH) * 100}%` }}
-              >
+              <div className="preview-empty" style={{ ["--photo-r" as string]: "21%" }}>
                 <span>Your photo</span>
               </div>
             ) : null}

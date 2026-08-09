@@ -1,3 +1,4 @@
+import Image from "next/image";
 import IdCardStudio from "@/components/IdCardStudio";
 
 export default function Home() {
@@ -5,15 +6,20 @@ export default function Home() {
     <main className="page">
       <div className="topbar">
         <div className="topbar-brand">
-          <div className="topbar-mark" aria-hidden>
-            गो
-          </div>
+          <Image
+            src="/hhgoa-icon.png"
+            alt="Hacker House Goa"
+            width={56}
+            height={40}
+            className="topbar-logo"
+            priority
+          />
           <div>
             <strong>HACKER GOA HOUSE</strong>
             <span>Builder Social Card Generator</span>
           </div>
         </div>
-        <div className="topbar-meta">Studio</div>
+        <div className="topbar-meta">By team <u>CtrlCrew</u> </div>
       </div>
 
       <IdCardStudio />

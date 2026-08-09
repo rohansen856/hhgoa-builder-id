@@ -63,19 +63,14 @@ body {
   min-width: 0;
 }
 
-.topbar-mark {
+.topbar-logo {
   flex: none;
-  width: 2.1rem;
-  height: 2.1rem;
-  border-radius: 999px;
-  display: grid;
-  place-items: center;
-  background: var(--hh-pink);
-  color: var(--hh-yellow);
-  font-family: var(--font-hh-display), sans-serif;
-  font-weight: 800;
-  font-size: 0.78rem;
-  line-height: 1;
+  width: auto;
+  height: 2.4rem;
+  border-radius: 0;
+  object-fit: contain;
+  background: transparent;
+  box-shadow: none;
 }
 
 .topbar-brand strong {
@@ -193,7 +188,7 @@ body {
   grid-template-columns: 1fr 1fr;
   gap: 0.25rem;
   width: min(100%, 320px);
-  margin: 0 auto;
+  margin: 0 auto 1.35rem;
   padding: 0.25rem;
   background: #fff;
   border: 1px solid rgba(6, 55, 37, 0.1);
@@ -260,14 +255,66 @@ body {
   color: var(--hh-muted);
 }
 
-.builder-id {
-  padding: 0.85rem 0.95rem;
+.field input {
+  width: 100%;
+  border: 1px solid rgba(6, 55, 37, 0.14);
+  background: #fff;
+  color: var(--hh-ink);
   border-radius: 12px;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  color: var(--hh-green-deep);
-  background: rgba(0, 112, 50, 0.06);
-  border: 1px solid rgba(0, 112, 50, 0.14);
+  padding: 0.85rem 0.95rem;
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.field input:focus {
+  outline: 2px solid var(--hh-green);
+  outline-offset: 1px;
+}
+
+.field input::placeholder {
+  color: #8a968e;
+  font-weight: 500;
+}
+
+.crop-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 0.9rem;
+  border-radius: 14px;
+  background: #fff;
+  border: 1px solid rgba(6, 55, 37, 0.1);
+}
+
+.crop-stage {
+  display: grid;
+  place-items: center;
+  padding: 0.35rem 0;
+  touch-action: none;
+  user-select: none;
+}
+
+.crop-stage.is-interactive {
+  cursor: grab;
+}
+
+.crop-stage.is-interactive:active {
+  cursor: grabbing;
+}
+
+.crop-canvas {
+  width: min(100%, 220px);
+  height: auto;
+  border-radius: 50%;
+  display: block;
+  box-shadow: 0 8px 24px rgba(6, 55, 37, 0.12);
+}
+
+.crop-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
 }
 
 .dropzone {

@@ -121,10 +121,11 @@ export function randomBuilderId() {
   return `#HH-GOA-${n}`;
 }
 
-export function buildTweetCaption(builderId: string, origin: string) {
+export function buildTweetCaption(teamName: string, origin: string) {
+  const team = teamName.trim() || "our team";
   return `🌴 Built my Hacker Goa House Builder Card!
 
-🪪 Builder ID: ${builderId}
+👥 Team: ${team}
 
 Excited to build, ship, and connect with amazing builders in Goa. 🚀
 
