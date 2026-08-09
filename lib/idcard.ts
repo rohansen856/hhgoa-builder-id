@@ -126,10 +126,10 @@ export function buildTweetCaption(origin: string) {
 
 Excited to build, ship, and connect with amazing builders in Goa. 🚀
 
-<--- add builder id image here --->
-
 Create your own Builder Card:
 ${origin}
 
-#FrameInGoa #HHGoa2026`;
+#FrameInGoa #HHGoa2026
+
+<--- add builder id image here --->`;
 }
