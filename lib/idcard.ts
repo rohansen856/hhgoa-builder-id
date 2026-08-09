@@ -4,7 +4,7 @@ export const CARD_HEIGHT = 2400;
 export const PHOTO_CX = 927;
 export const PHOTO_CY = 660;
 export const PHOTO_R = 394;
-export const TEMPLATE_SRC = "/idcard/template.png?v=3";
+export const TEMPLATE_SRC = "/idcard/template.png?v=8";
 export const MAX_PHOTO_EDGE = 2048;
 
 export type PhotoTransform = { x: number; y: number; zoom: number };
@@ -121,13 +121,12 @@ export function randomBuilderId() {
   return `#HH-GOA-${n}`;
 }
 
-export function buildTweetCaption(teamName: string, origin: string) {
-  const team = teamName.trim() || "our team";
+export function buildTweetCaption(origin: string) {
   return `🌴 Built my Hacker Goa House Builder Card!
 
-👥 Team: ${team}
-
 Excited to build, ship, and connect with amazing builders in Goa. 🚀
+
+<--- add builder id image here --->
 
 Create your own Builder Card:
 ${origin}

@@ -99,12 +99,24 @@ body {
 
 .page-footer {
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
+  align-items: center;
   gap: 0.55rem;
   padding-top: 0.5rem;
   border-top: 2px solid var(--hh-yellow);
   font-size: 0.82rem;
   font-weight: 700;
+  color: var(--hh-green-deep);
+}
+
+.page-footer a {
+  color: var(--hh-green);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.page-footer a:hover {
   color: var(--hh-green-deep);
 }
 
@@ -305,9 +317,11 @@ body {
 
 .crop-canvas {
   width: min(100%, 220px);
+  aspect-ratio: 1;
   height: auto;
   border-radius: 50%;
   display: block;
+  background: #0a5c32;
   box-shadow: 0 8px 24px rgba(6, 55, 37, 0.12);
 }
 

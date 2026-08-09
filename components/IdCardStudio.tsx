@@ -206,7 +206,7 @@ export default function IdCardStudio() {
       const blob = await exportPng();
       if (!blob) return;
       downloadBlob(blob, `HH-Goa-Builder-Card-${safeSlug(teamName)}.png`);
-      const caption = buildTweetCaption(teamName, window.location.origin);
+      const caption = buildTweetCaption(window.location.origin);
       window.open(
         `https://twitter.com/intent/tweet?text=${encodeURIComponent(caption)}`,
         "_blank",
@@ -305,17 +305,6 @@ export default function IdCardStudio() {
         <section className="studio-panel">
           {mode === "single" ? (
             <>
-              <label className="field">
-                <span>Team name</span>
-                <input
-                  type="text"
-                  value={teamName}
-                  maxLength={48}
-                  placeholder="e.g. CtrlCrew"
-                  autoComplete="organization"
-                  onChange={(e) => setTeamName(e.target.value)}
-                />
-              </label>
 
               <div className="field">
                 <span>Photo</span>
@@ -412,17 +401,6 @@ export default function IdCardStudio() {
             </>
           ) : (
             <>
-              <label className="field">
-                <span>Team name</span>
-                <input
-                  type="text"
-                  value={teamName}
-                  maxLength={48}
-                  placeholder="e.g. CtrlCrew"
-                  autoComplete="organization"
-                  onChange={(e) => setTeamName(e.target.value)}
-                />
-              </label>
               <p className="bulk-copy">
                 Upload many photos at once. Each card uses a centered crop. You get a ZIP of PNGs
                 named with your team.
