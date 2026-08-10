@@ -15,7 +15,7 @@ export default function Home() {
             priority
           />
           <div>
-            <strong>HACKER GOA HOUSE</strong>
+            <strong>HACKER HOUSE GOA</strong>
             <span>Builder Social Card Generator</span>
           </div>
         </div>

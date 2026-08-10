@@ -122,7 +122,7 @@ export function randomBuilderId() {
 }
 
 export function buildTweetCaption(origin: string) {
-  return `🌴 Built my Hacker Goa House Builder Card!
+  return `🌴 Built my Hacker House Goa Builder Card!
 
 Excited to build, ship, and connect with amazing builders in Goa. 🚀
 
